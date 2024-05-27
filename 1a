@@ -1,0 +1,43 @@
+PRESERVE8 
+
+Stack EQU 0x00000100
+
+AREA STACK,NOINIT,READWRITE
+
+StackMem SPACE Stack
+
+AREA RESET, DATA , READONLY
+
+EXPORT Vectors
+
+ Vectors
+
+DCD StackMem + Stack
+
+DCD Reset_Handler
+
+AREA tempData, DATA, READONLY
+
+Array DCD 1,2,3,55,5,6,7,8,9,10 ; 10 elements are initialized 
+
+Len EQU 10
+
+AREA |.text|, CODE , READONLY 
+
+ENTRY
+
+EXPORT Reset_Handler 
+
+Reset_Handler 
+
+Reset_Handler_End
+
+LDR R0, =Array 
+
+MOV R1, #Len
+
+MOV R2, #55 ; Element to search for 
+
+BL Linear_Search_Start
+
+stop B stop
