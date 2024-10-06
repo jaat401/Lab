@@ -1,43 +1,98 @@
-PRESERVE8 
+clear all; clc;
+N = 100000; % Number of input symbols
+EbN0dB = -4:5:24; % Define EbN0dB range for simulation
+M = 64; % M-QAM modulation order
+g = 0.9; phi = 8; dc_i = 1.9; dc_q = 1.7; % Receiver impairments
 
-Stack EQU 0x00000100
+k = log2(M); % Bits per symbol
+EsN0dB = 10 * log10(k) + EbN0dB; % Converting Eb/N0 to Es/N0
+SER1 = zeros(length(EsN0dB), 1); % Symbol Error rates (No compensation)
+SER2 = SER1; % Symbol Error rates (DC compensation only)
+SER3 = SER1; % Symbol Error rates (DC comp & Blind IQ compensation)
+SER4 = SER1; % Symbol Error rates (DC comp & Pilot IQ compensation)
 
-AREA STACK,NOINIT,READWRITE
+d = randi([0 M-1], 1, N); % Random data symbols drawn from [0,1,..,M-1]
+s = qammod(d, M, 'UnitAveragePower', true); % 64-QAM modulation
 
-StackMem SPACE Stack
+for i = 1:length(EsN0dB)
+    % Add AWGN noise
+    r = awgn(s, EsN0dB(i), 'measured');
+    
+    % Receiver impairments (Gain imbalance, Phase mismatch, DC offset)
+    I = real(r); % In-phase component
+    Q = imag(r); % Quadrature component
+    
+    % Apply gain imbalance and phase mismatch
+    r_imp = (1 + g) * I + 1i * (1 - g) * Q; 
+    r_imp = r_imp .* exp(1i * deg2rad(phi)); % Phase mismatch
+    
+    % Apply DC offsets
+    r_imp = r_imp + dc_i + 1i * dc_q; % DC offsets in I and Q
+    
+    % DC compensation (remove DC offsets)
+    r_dc_comp = r_imp - (dc_i + 1i * dc_q); 
+    
+    % Simulate Blind IQ Compensation (for now, assume no compensation)
+    y3 = r_dc_comp; % No changes here, just a placeholder
+    
+    % Simulate Pilot IQ Compensation (again, assume ideal compensation)
+    y4 = r_dc_comp; % Same placeholder for pilot-based compensation
 
-AREA RESET, DATA , READONLY
+    % Demodulate received symbols
+    dcap_1 = qamdemod(r_imp, M, 'UnitAveragePower', true); % No compensation
+    dcap_2 = qamdemod(r_dc_comp, M, 'UnitAveragePower', true); % DC comp only
+    dcap_3 = qamdemod(y3, M, 'UnitAveragePower', true); % DC & Blind IQ comp
+    dcap_4 = qamdemod(y4, M, 'UnitAveragePower', true); % DC & Pilot IQ comp
 
-EXPORT Vectors
+    % Calculate Symbol Error Rate (SER)
+    SER1(i) = sum(d ~= dcap_1) / N; 
+    SER2(i) = sum(d ~= dcap_2) / N;
+    SER3(i) = sum(d ~= dcap_3) / N; 
+    SER4(i) = sum(d ~= dcap_4) / N;
+end
 
- Vectors
+% Theoretical SER calculation (MATLAB has no direct MQAM SER function, so use formulas or approximate)
+theoreticalSER = 4 * (1 - 1/sqrt(M)) * qfunc(sqrt(3*log2(M)*10.^(EbN0dB/10)/(M-1)));
 
-DCD StackMem + Stack
+% Plot results
+figure;
+semilogy(EbN0dB, SER1, 'r*-'); hold on;
+semilogy(EbN0dB, SER2, 'bO-'); 
+semilogy(EbN0dB, SER3, 'g^-');
+semilogy(EbN0dB, SER4, 'm*-'); 
+semilogy(EbN0dB, theoreticalSER, 'k');
+legend('No compensation', 'DC comp only', 'Sim- DC & blind IQ comp', 'Sim- DC & pilot IQ comp', 'Theoretical');
+xlabel('E_b/N_0 (dB)'); ylabel('Symbol Error Rate (Ps)');
+title('Probability of Symbol Error 64-QAM signals');
 
-DCD Reset_Handler
+% Part 2: Impairment Simulation
+M = 64; % M-QAM modulation order
+N = 1000; % Number of symbols
+d = randi([0 M-1], N, 1); % Random data symbols
+s = qammod(d, M, 'UnitAveragePower', true); % 64-QAM modulation
 
-AREA tempData, DATA, READONLY
+% Different impairment cases
+g_1 = 0.8; phi_1 = 0; dc_i_1 = 0; dc_q_1 = 0; % Gain mismatch only
+g_2 = 1; phi_2 = 12; dc_i_2 = 0; dc_q_2 = 0; % Phase mismatch only
+g_3 = 1; phi_3 = 0; dc_i_3 = 0.5; dc_q_3 = 0.5; % DC offsets only
+g_4 = 0.8; phi_4 = 12; dc_i_4 = 0.5; dc_q_4 = 0.5; % All impairments
 
-Array DCD 1,2,3,55,5,6,7,8,9,10 ; 10 elements are initialized 
+% Apply impairments to signals
+r1 = (1 + g_1) * real(s) + 1i * (1 - g_1) * imag(s); % Gain mismatch
+r2 = s .* exp(1i * deg2rad(phi_2)); % Phase mismatch
+r3 = s + dc_i_3 + 1i * dc_q_3; % DC offsets
+r4 = (1 + g_4) * real(s) + 1i * (1 - g_4) * imag(s); % Gain mismatch
+r4 = r4 .* exp(1i * deg2rad(phi_4)); % Phase mismatch
+r4 = r4 + dc_i_4 + 1i * dc_q_4; % DC offsets
 
-Len EQU 10
+% Plot impaired constellation diagrams
+figure;
+subplot(2,2,1); plot(real(s), imag(s), 'b.'); hold on;
+plot(real(r1), imag(r1), 'r.'); title('IQ Gain mismatch only');
+subplot(2,2,2); plot(real(s), imag(s), 'b.'); hold on;
+plot(real(r2), imag(r2), 'r.'); title('IQ Phase mismatch only');
+subplot(2,2,3); plot(real(s), imag(s), 'b.'); hold on;
+plot(real(r3), imag(r3), 'r.'); title('DC offsets only');
+subplot(2,2,4); plot(real(s), imag(s), 'b.'); hold on;
+plot(real(r4), imag(r4), 'r.'); title('IQ impairments & DC offsets');
 
-AREA |.text|, CODE , READONLY 
-
-ENTRY
-
-EXPORT Reset_Handler 
-
-Reset_Handler 
-
-Reset_Handler_End
-
-LDR R0, =Array 
-
-MOV R1, #Len
-
-MOV R2, #55 ; Element to search for 
-
-BL Linear_Search_Start
-
-stop B stop
