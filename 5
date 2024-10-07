@@ -1,0 +1,90 @@
+clearvars; clc;
+%---------Input Fields------------------------
+nSym = 10^5; % Number of symbols to transmit
+EbN0dB = -4:2:14; % Eb/N0 range in dB for simulation
+MOD_TYPE = 'PSK'; % Set 'PSK' or 'QAM' or 'PAM' or 'FSK'
+arrayOfM = [2, 4, 8, 16, 32]; % Array of M values to simulate
+% arrayOfM=[4,16,64,256]; % Uncomment this line if MOD_TYPE='QAM'
+COHERENCE = 'coherent'; % 'coherent'/'noncoherent'-only for FSK
+
+plotColor = ['b','g','r','c','m','k']; p = 1; % Plot colors
+legendString = cell(1, length(arrayOfM) * 2); % For legend entries
+
+for M = arrayOfM
+    %-----Initialization of various parameters----
+    k = log2(M); 
+    EsN0dB = 10*log10(k) + EbN0dB; % EsN0dB calculation
+    SER_sim = zeros(1, length(EbN0dB)); % Simulated Symbol error rates
+    
+    d = randi([0 M-1], 1, nSym); % Uniform random symbols from 0:M-1
+    
+    % Modulation based on the type
+    if strcmp(MOD_TYPE, 'PSK')
+        s = pskmod(d, M); % PSK modulation
+    elseif strcmp(MOD_TYPE, 'QAM')
+        s = qammod(d, M); % QAM modulation
+    elseif strcmp(MOD_TYPE, 'PAM')
+        s = pammod(d, M); % PAM modulation
+    elseif strcmp(MOD_TYPE, 'FSK')
+        % Use FSK modulation with 'coherent' or 'noncoherent'
+        fs = 1e6; % Sampling frequency (define as needed)
+        s = fskmod(d, M, nSym/k, fs, COHERENCE); % FSK modulation
+    end
+    
+    for i = 1:length(EsN0dB)
+        r = awgn(s, EsN0dB(i), 'measured'); % Add AWGN noise
+        
+        % Demodulation based on the type
+        if strcmp(MOD_TYPE, 'PSK')
+            dCap = pskdemod(r, M); % PSK demodulation
+        elseif strcmp(MOD_TYPE, 'QAM')
+            dCap = qamdemod(r, M); % QAM demodulation
+        elseif strcmp(MOD_TYPE, 'PAM')
+            dCap = pamdemod(r, M); % PAM demodulation
+        elseif strcmp(MOD_TYPE, 'FSK')
+            dCap = fskdemod(r, M, nSym/k, fs, COHERENCE); % FSK demodulation
+        end
+        
+        SER_sim(i) = sum(d ~= dCap) / nSym; % SER computation
+    end
+    
+    % Theoretical SER computation (example for PSK, adapt for other modulations)
+    SER_theory = zeros(size(EbN0dB));
+    for i = 1:length(EbN0dB)
+        EbN0 = 10^(EbN0dB(i)/10); % Convert from dB to linear scale
+        if strcmp(MOD_TYPE, 'PSK')
+            % PSK Theoretical SER for coherent detection
+            SER_theory(i) = 2*qfunc(sqrt(2*EbN0)*sin(pi/M));
+        elseif strcmp(MOD_TYPE, 'QAM')
+            % QAM Theoretical SER
+            SER_theory(i) = 4*(1-1/sqrt(M))*qfunc(sqrt(3/(M-1)*EbN0));
+        elseif strcmp(MOD_TYPE, 'PAM')
+            % PAM Theoretical SER
+            SER_theory(i) = 2*(1-1/M)*qfunc(sqrt(6*EbN0/(M^2-1)));
+        elseif strcmp(MOD_TYPE, 'FSK')
+            % FSK Theoretical SER
+            if strcmp(COHERENCE, 'coherent')
+                SER_theory(i) = qfunc(sqrt(2*EbN0)); % Coherent FSK
+            else
+                SER_theory(i) = 0.5*exp(-EbN0); % Non-coherent FSK
+            end
+        end
+    end
+    
+    % Plot the results
+    semilogy(EbN0dB, SER_sim, [plotColor(p) '*']); hold on;
+    semilogy(EbN0dB, SER_theory, plotColor(p));
+    
+    legendString{2*p-1} = ['Sim ', num2str(M), '-', MOD_TYPE];
+    legendString{2*p} = ['Theory ', num2str(M), '-', MOD_TYPE]; 
+    p = p + 1;
+end
+
+% Set axis scaling and limits for consistent scaling
+xlim([min(EbN0dB) max(EbN0dB)]);
+ylim([1e-6 1]); % Adjust according to expected SER range
+
+legend(legendString);
+xlabel('Eb/N0 (dB)'); ylabel('SER (Ps)');
+title(['Probability of Symbol Error for M-', MOD_TYPE, ' over AWGN']);
+grid on; % Add grid for better visualization
