@@ -1,65 +1,39 @@
-#include <stdio.h>
-#include <string.h>
-
-#define DLE 16
-#define STX 2
-#define ETX 3
-
-int main() {
-    int ch;  // Change char to int to accommodate getchar's return type
-    char arr[100] = {DLE, STX};
-    int i = 2, j;
-
-    printf("\nEnter the data stream (CTRL+B -> STX, CTRL+C -> ETX, CTRL+P -> DLE, ENTER to stop):\n");
-    do {
-        ch = getchar();  // Read character using getchar
-        if (ch == '\n') {
-            break;  // Stop if newline is encountered
-        }
-
-        // Check and process the input character
-        if (ch == DLE) {
-            arr[i++] = DLE;
-            printf("DLE");
-        } else if (ch == STX) {
-            printf("STX");
-        } else if (ch == ETX) {
-            printf("ETX");
-        } else {
-            printf("%c", ch);
-        }
-        arr[i++] = ch;  // Store the character in the array
-    } while (1);  // Loop until newline is encountered
-
-    arr[i++] = DLE;
-    arr[i++] = ETX;
-
-    printf("\nThe stuffed stream is:\n");
-    for (j = 0; j < i; j++) {
-        if (arr[j] == DLE) {
-            printf("DLE");
-        } else if (arr[j] == STX) {
-            printf("STX");
-        } else if (arr[j] == ETX) {
-            printf("ETX");
-        } else {
-            printf("%c", arr[j]);
-        }
-    }
-
-    printf("\nThe de-stuffed data is:\n");
-    for (j = 2; j < i - 2; j++) {
-        if (arr[j] == DLE) {
-            printf("DLE");
-            j++;
-        } else if (arr[j] == STX) {
-            printf("STX");
-        } else if (arr[j] == ETX) {
-            printf("ETX");
-        } else {
-            printf("%c", arr[j]);
-        }
-    }
-
-    return 0;
-}
+PRESERVE8
+Stack EQU 0x00000100
+AREA STACK, NOINIT, READWRITE,ALIGN=3
+StackMem SPACE Stack
+AREA RESET , DATA , READONLY
+EXPORT__Vectors
+ __Vectors
+DCD StackMem + Stack
+DCD Reset_Handler
+;ALIGN
+AREA tempData, DATA, READONLY, ALIGN=3
+ROMARRAY DCD 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+AREA data, DATA, READWRITE, ALIGN=3
+LEN EQU 0x08
+NOOVERLAP EQU 0x08 ; Non overlapped offset bytes
+ARRAY SPACE 32
+AREA |.text| , CODE , READONLY , ALIGN=4
+ENTRY
+EXPORT Reset_Handler
+Reset_Handler
+Reset_Handler_End
+MOV R0, #0x08
+LDR R1, =ROMARRAY + 28
+LDR R2, =ARRAY + 28
+MEMCPY_LOOP
+LDR R3, [R1], #-4
+STR R3,[R2], #-4
+SUBS R0, R0, #1
+BNE MEMCPY_LOOP
+MOV R0, #LEN
+LDR R1,=ARRAY+28
+LDR R2,=ARRAY+28+NOOVERLAP
+TRANSFER_LOOP
+LDR R3, [R1],#-4
+STR R3, [R2], #-4
+SUBS R0, R0, #1
+BNE TRANSFER_LOOP
+STOP B STOP
+END
