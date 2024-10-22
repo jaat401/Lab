@@ -1,0 +1,96 @@
+PRESERVE8
+Stack EQU 0x00000100
+AREA STACK, NOINIT, READWRITE
+StackMem SPACE Stack
+AREA RESET, DATA , READONLY
+EXPORT Vectors
+ Vectors
+DCD StackMem + Stack
+DCD Reset_Handler
+AREA |.text| , CODE , READONLY
+ENTRY
+EXPORT Reset_Handler
+Reset_Handler
+Reset_Handler_End
+LDR R1, = 0X20000000 ;memory location for condition
+LDR R2, [R1]
+LDR R3, [R1, #4] ;Operand 1
+LDR R4, [R1, #8] ;Operand 2
+CMP R2, #1 ;1: Addition
+BNE CHK_SUB
+ADDS R7, R3, R4 ;R7=R3+R4
+B LAST
+CHK_SUB CMP R2, #2 ;2: subtraction
+BNE CHK_MUL
+SUBS R7, R3, R4 
+B LAST
+CHK_MUL CMP R2, #3 ; 3: Multiplication
+BNE CHK_DIV
+UMULL R7, R8, R3, R4 ; [RdHi,RdLow]=Rn*Rm
+B LAST ;UMULL:Unsigned multiply long
+CHK_DIV CMP R2, #4 ; 4: Division
+BNE LAST
+UDIV R7, R3, R4 ;R7=R3/R4
+LAST STR R7, [R1, #20] ;store result in memory location 0x20000014
+STR R8, [R1, #24] ;store the RdLow in memory location
+;0x20000018 for multiplication.
+STOP B STOP
+END
+
+
+
+
+PRESERVE8
+Stack EQU 0x00000100
+AREA STACK, NOINIT, READWRITE
+StackMem SPACE Stack
+AREA RESET, DATA , READONLY
+EXPORT Vectors
+ Vectors
+DCD StackMem + Stack
+DCD Reset_Handler
+AREA |.text| , CODE , READONLY
+ENTRY
+EXPORT Reset_Handler
+Reset_Handler
+Reset_Handler_End
+LDR R1, = 0X20000000 ; memory location for condition
+LDR R2, [R1]
+LDR R3, [R1, #4] ; Operand 1: Lower 32 bits
+LDR R4, [R1, #8] ; Operand 1: Upper 32 bits
+LDR R5, [R1, #12] ; Operand 2: Lower 32 bits
+LDR R6, [R1, #16] ; Operand 2: Upper 32 bits
+CMP R2, #1 ;1= addition
+BNE CHK_SUB
+ADDS R7, R3, R5 ;Add the lower 32 bits
+ADC R8, R4, R6 ;Add the upper 32 bits with carry (if present)
+B LAST
+CHK_SUB CMP R2, #2
+BNE CHK_MUL
+SUBS R7, R3, R5 ; Subtract the lower 32 bits
+SBC R8, R4, R6 ;Subtract the upper 32 bits with borrow (if present)
+B LAST
+CHK_MUL CMP R2, #3 ;3=Multiplication
+BNE DEFAULT
+UMULL R7, R8, R3, R5 ;low*low
+UMULL R9, R10, R3, R6 ;low*high
+UMULL R6, R3, R4, R6 ;high*high
+ADDS R8, R8, R9
+ADCS R9, R10, R6
+ADC R10, R3, #0
+UMULL R5, R3, R4, R5 ;high*low
+ADDS R8, R8, R5
+ADCS R9, R9, R3
+ADC R10, R10, #0
+B LAST
+DEFAULT MOV R7, #0 ;if no operation is done
+MOV R8, #0
+MOV R9, #0
+MOV R10, #0
+LAST STR R7, [R1, #20] ;store result[31:0] in memory location 0x20000014
+STR R8, [R1, #24] ;store result[63:32] in memory location 0x20000018
+STR R9, [R1, #28] ;store result[95:64] in memory location 0x2000001c.
+STR R10, [R1, #32] ;store result[127:96] in memory location 0x20000020.
+STOP B STOP
+END
+
