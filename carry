@@ -1,0 +1,67 @@
+
+module tb_carry_look_adder;
+    reg [3:0] a, b;
+    reg cin;
+    wire [3:0] sum;
+    wire cout;
+    carry_look_adder UUT (
+        .a(a),
+        .b(b),
+        .cin(cin),
+        .sum(sum),
+        .cout(cout)
+    );
+
+   
+    initial begin
+        // Initialize inputs
+        a = 4'b0000; b = 4'b0000; cin = 1'b0;
+        
+        // Wait for global reset to finish
+        #100;
+        
+        // Apply various test vectors
+        a = 4'b0001; b = 4'b0001; cin = 1'b0; #10;  // Test 1 + 1
+        a = 4'b0011; b = 4'b0011; cin = 1'b0; #10;  // Test 3 + 3
+        a = 4'b0101; b = 4'b1010; cin = 1'b1; #10;  // Test 5 + 10 + carry-in
+        a = 4'b1111; b = 4'b1111; cin = 1'b1; #10;  // Test 15 + 15 + carry-in
+        
+        // Add more test cases if needed
+        
+        $finish;  // End the simulation
+    end
+
+endmodule
+
+
+
+module carry_look_adder (input [3:0] a, b, input cin, output [3:0] sum, output cout );
+
+
+wire g0,p0,g1,pl,g2,p2,g3,p3
+wire c1,c2,c3;
+assign g0= a[0] & b[0];
+assign p0 =a[0]^ b[0];
+assign sum[0]= a[0] ^ b[0] ^ cin;
+
+
+assign c1 = g0 | (p0 & cin);
+assign gl=a[1] & b[1];
+assign pl =a[1]^ b[1];
+assign sum[1]=a[1]^ b[1] ^ c1;
+
+
+assign c2=gl I (p1 & cl);
+assign g2= a[2] & b[2];
+assign p2 =a[2] ^ b[2]:
+assign sum[2] =a[2] ^ b[2] ^ c2;
+
+
+assign c3=g2| (p2 & c2);
+assign g3 =a[3] & b[3];
+assign p3=a[3] ^ b[3];
+assign sum[3]= a[3]^ b[3]^ c3;
+
+
+assign cout =g3| (p3 & c3);
+endmodule
