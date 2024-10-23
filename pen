@@ -1,0 +1,85 @@
+module penc83(en,d, b);
+input en;
+input [7:0] d;
+output [2:0] b
+reg [2:0] b;
+always@ (d, en)
+if(en) b=3'd0;
+else if(d[7]) b = 3'd7;
+else if (d[6]) b= 3'd6
+else if (d[5]) b= 3?d5;
+else if (d[4]) b= 3'd4;
+else if (d[3]) b= 3'd3;
+else if (d[2]) b= 3'd2;
+else if (d[1]) b= 3'd1;
+else b= 3d0;
+endmodule
+
+
+
+module encoder_tb();
+reg en;
+reg [7:0]d;
+wire[2:0]b;
+encoderuu(en,d,b);
+initial
+begin
+en =1;
+en =0;
+d =8'b00000001;
+#10 d =8'b00000010;
+#10 d =8'b00000100
+#10 d =8'b00001 000;
+#10 d =8b00010000
+#10 d =8'b00100000
+#10 d =8b01000000
+#10 d =8'b10000000;
+#100 $finish;
+end
+endmodule
+
+
+`timescale 1ns / 1ps
+
+module tb_penc83;
+
+    // Inputs
+    reg en;
+    reg [7:0] d;
+
+    // Outputs
+    wire [2:0] b;
+
+    // Instantiate the penc83 module
+    penc83 UUT (
+        .en(en),
+        .d(d),
+        .b(b)
+    );
+
+    // Test procedure
+    initial begin
+        // Initialize inputs
+        en = 1'b0;
+        d  = 8'b0000_0000;
+
+        // Wait for global reset to finish
+        #100;
+
+        // Apply test vectors
+        en = 1'b1; d = 8'b0000_0000; #10;  // Test with enable = 1 (should output 000)
+        en = 1'b0; d = 8'b1000_0000; #10;  // Highest priority: b = 7
+        en = 1'b0; d = 8'b0100_0000; #10;  // Next priority: b = 6
+        en = 1'b0; d = 8'b0010_0000; #10;  // b = 5
+        en = 1'b0; d = 8'b0001_0000; #10;  // b = 4
+        en = 1'b0; d = 8'b0000_1000; #10;  // b = 3
+        en = 1'b0; d = 8'b0000_0100; #10;  // b = 2
+        en = 1'b0; d = 8'b0000_0010; #10;  // b = 1
+        en = 1'b0; d = 8'b0000_0001; #10;  // Lowest priority: b = 0
+
+        $finish;  // End the simulation
+    end
+
+endmodule
+
+
